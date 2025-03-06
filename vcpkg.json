@@ -28,7 +28,11 @@
 					],
 					"platform": "linux"
 				},
-				"sdl2"
+				"sdl2",
+				{
+					"name": "catch2",
+					"platform": "osx"
+				}
 			]
 		},
 		"steam-libs": {
