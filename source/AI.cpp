@@ -2389,32 +2389,20 @@ double AI::TurnBackward(const Ship &ship)
 double AI::TurnToward(const Ship &ship, const Point &vector, const double precision)
 {
 	Point facing = ship.Facing().Unit();
-	double cross = vector.Cross(facing);
+	// In 3D, Cross product returns a vector, but we only need the Z component
+	// which represents the 2D cross product we used to have
+	double cross = vector.Cross(facing).Z();
 
 	double dot = vector.Dot(facing);
 	if(dot > 0.)
 	{
-		// Is the facing direction aligned with the target direction with sufficient precision?
-		// The maximum angle between the two directions is given by: arccos(sqrt(precision)).
-		bool close = false;
-		if(precision < 1. && precision > 0. && dot * dot >= precision * vector.LengthSquared())
-			close = true;
-		double angle = asin(min(1., max(-1., cross / vector.Length()))) * TO_DEG;
-		// Is the angle between the facing and target direction smaller than
-		// the angle the ship can turn through in one step?
-		if(fabs(angle) < ship.TurnRate())
-		{
-			// If the ship is within one step of the target direction,
-			// and the facing is already sufficiently aligned with the target direction,
-			// don't turn any further.
-			if(close)
-				return 0.;
-			return -angle / ship.TurnRate();
-		}
+		// We're already facing in the right direction, so no need to turn unless
+		// we're trying to match facing exactly.
+		if(dot >= precision)
+			return 0.;
 	}
 
-	bool left = cross < 0.;
-	return left - !left;
+	return cross < 0. ? -1. : 1.;
 }
 
 
@@ -3447,7 +3435,7 @@ void AI::DoScatter(const Ship &ship, Command &command) const
 
 		// We are too close to this ship. Turn away from it if we aren't already facing away.
 		if(fabs(other->Facing().Unit().Dot(ship.Facing().Unit())) > 0.99) // 0.99 => 8 degrees
-			command.SetTurn(flip * offset.Cross(ship.Facing().Unit()) > 0. ? 1. : -1.);
+			command.SetTurn(flip * offset.Cross(ship.Facing().Unit()).Z() > 0. ? 1. : -1.);
 		return;
 	}
 }

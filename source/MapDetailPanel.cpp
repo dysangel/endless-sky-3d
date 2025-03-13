@@ -68,7 +68,7 @@ namespace {
 	pair<double, double> SortAngle(const Point &reference, const Point &point)
 	{
 		// Rotate the given point by the reference amount.
-		Point rotated(reference.Dot(point), reference.Cross(point));
+		Point rotated(reference.Dot(point), reference.Cross(point).Z());
 
 		// This will be the tiebreaker value: the length, squared.
 		double length = rotated.Dot(rotated);

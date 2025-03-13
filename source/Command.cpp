@@ -52,6 +52,8 @@ const Command Command::FORWARD(ONE << 1, "Forward thrust");
 const Command Command::LEFT(ONE << 2, "Turn left");
 const Command Command::RIGHT(ONE << 3, "Turn right");
 const Command Command::BACK(ONE << 4, "Reverse");
+const Command Command::UP(ONE << 37, "Move up");
+const Command Command::DOWN(ONE << 38, "Move down");
 const Command Command::MOUSE_TURNING_HOLD(ONE << 5, "Mouse turning (hold)");
 const Command Command::PRIMARY(ONE << 6, "Fire primary weapon");
 const Command Command::TURRET_TRACKING(ONE << 7, "Toggle turret tracking");
@@ -263,6 +265,8 @@ void Command::Load(const DataNode &node)
 			{"left", Command::LEFT},
 			{"right", Command::RIGHT},
 			{"back", Command::BACK},
+			{"up", Command::UP},
+			{"down", Command::DOWN},
 			{"primary", Command::PRIMARY},
 			{"secondary", Command::SECONDARY},
 			{"select", Command::SELECT},

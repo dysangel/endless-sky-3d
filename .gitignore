@@ -74,3 +74,4 @@ CMakeUserPresets.json
 
 # static code analysis
 /.scannerwork
+.aider*

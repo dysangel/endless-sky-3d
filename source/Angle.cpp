@@ -46,7 +46,8 @@ namespace {
 			// positive Y is down rather than up. Angles are clock angles, i.e.
 			// 0 is 12:00 and angles increase in the clockwise direction. So, an
 			// angle of 0 degrees is pointing in the direction (0, -1).
-			cache.emplace_back(sin(radians), -cos(radians));
+			// In 3D, we'll keep Z at 0 for now, as we're still working in the XY plane
+			cache.emplace_back(sin(radians), -cos(radians), 0.);
 		}
 		return cache;
 	}
@@ -91,6 +92,7 @@ Angle::Angle(const double degrees) noexcept
 Angle::Angle(const Point &point) noexcept
 	: Angle(TO_DEG * atan2(point.X(), -point.Y()))
 {
+	// Note: This still works in 3D as long as we're only concerned with the XY plane
 }
 
 
@@ -185,8 +187,11 @@ Point Angle::Rotate(const Point &point) const
 	// If using the normal mathematical coordinate system, this would be easier.
 	// Since we're not, the math is a tiny bit less elegant:
 	const Point unit = Unit();
-	return Point(-unit.Y() * point.X() - unit.X() * point.Y(),
-		-unit.Y() * point.Y() + unit.X() * point.X());
+	return Point(
+		-unit.Y() * point.X() - unit.X() * point.Y(),
+		-unit.Y() * point.Y() + unit.X() * point.X(),
+		point.Z()  // Z coordinate remains unchanged for rotation around Z axis
+	);
 }
 
 

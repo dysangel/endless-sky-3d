@@ -207,7 +207,7 @@ void Projectile::Move(vector<Visual> &visuals, vector<Projectile> &projectiles)
 			unit = d.Unit();
 		}
 
-		double cross = angle.Unit().Cross(unit);
+		double cross = angle.Unit().Cross(unit).Z();
 
 		// The very dumbest of homing missiles lose their target if pointed
 		// away from it.

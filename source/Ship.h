@@ -473,6 +473,7 @@ public:
 	// Mining target.
 	std::shared_ptr<Minable> GetTargetAsteroid() const;
 	std::shared_ptr<Flotsam> GetTargetFlotsam() const;
+	std::set<const Flotsam *> &GetTractorFlotsam();
 	const std::set<const Flotsam *> &GetTractorFlotsam() const;
 	// Pattern to use when flying in a formation.
 	const FormationPattern *GetFormationPattern() const;
@@ -675,6 +676,8 @@ private:
 	int damageOverlayTimer = 0;
 	// Acceleration can be created by engines, firing weapons, or weapon impacts.
 	Point acceleration;
+	// Thrust is the ship's current forward thrust from its engines.
+	double thrust = 0.;
 
 	int crew = 0;
 	int pilotError = 0;

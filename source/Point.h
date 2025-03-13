@@ -21,7 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 
 
-// Class representing a 2D point with functions for a variety of vector operations.
+// Class representing a 3D point with functions for a variety of vector operations.
 // A Point can represent either a location or a vector (e.g. a velocity, or a
 // distance between two points, or a unit vector representing a direction). All
 // basic mathematical operations that make sense for vectors are supported.
@@ -30,9 +30,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 class Point {
 public:
 	Point() noexcept;
-	Point(double x, double y) noexcept;
+	Point(double x, double y, double z = 0.0) noexcept;
 
-	// Check if the point is anything but (0, 0).
+	// Check if the point is anything but (0, 0, 0).
 	explicit operator bool() const noexcept;
 	bool operator!() const noexcept;
 
@@ -60,12 +60,14 @@ public:
 	const double &X() const noexcept;
 	double &Y();
 	const double &Y() const noexcept;
+	double &Z();
+	const double &Z() const noexcept;
 
-	void Set(double x, double y);
+	void Set(double x, double y, double z = 0.0);
 
-	// Operations that treat this point as a vector from (0, 0):
+	// Operations that treat this point as a vector from (0, 0, 0):
 	double Dot(const Point &point) const;
-	double Cross(const Point &point) const;
+	Point Cross(const Point &point) const; // Now returns a 3D vector
 
 	double Length() const;
 	double LengthSquared() const;
@@ -76,11 +78,11 @@ public:
 
 	Point Lerp(const Point &to, const double c) const;
 
-	// Take the absolute value of both coordinates.
+	// Take the absolute value of all coordinates.
 	friend Point abs(const Point &p);
-	// Use the min of each x and each y coordinates.
+	// Use the min of each x, y, and z coordinates.
 	friend Point min(const Point &p, const Point &q);
-	// Use the max of each x and each y coordinates.
+	// Use the max of each x, y, and z coordinates.
 	friend Point max(const Point &p, const Point &q);
 
 
@@ -94,14 +96,16 @@ private:
 	struct PointInternal {
 		double x;
 		double y;
+		double z;
 	};
 	union {
-		__m128d v;
+		__m128d v; // Note: This will need to be updated for 3D support
 		PointInternal val;
 	};
 #else
 	double x;
 	double y;
+	double z;
 #endif
 };
 
@@ -147,5 +151,27 @@ inline const double &Point::Y() const noexcept
 	return val.y;
 #else
 	return y;
+#endif
+}
+
+
+
+inline double &Point::Z()
+{
+#ifdef __SSE3__
+	return val.z;
+#else
+	return z;
+#endif
+}
+
+
+
+inline const double &Point::Z() const noexcept
+{
+#ifdef __SSE3__
+	return val.z;
+#else
+	return z;
 #endif
 }

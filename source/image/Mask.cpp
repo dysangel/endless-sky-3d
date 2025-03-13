@@ -467,12 +467,12 @@ double Mask::Intersection(Point sA, Point vA) const
 			// there is, handle it only if it is a point where the segment is
 			// entering the polygon rather than exiting it (i.e. cross > 0).
 			Point vB = next - prev;
-			double cross = vB.Cross(vA);
+			double cross = vB.Cross(vA).Z();
 			if(cross > 0.)
 			{
 				Point vS = prev - sA;
-				double uB = vA.Cross(vS);
-				double uA = vB.Cross(vS);
+				double uB = vA.Cross(vS).Z();
+				double uA = vB.Cross(vS).Z();
 				// If the intersection occurs somewhere within this segment of the
 				// outline, find out how far along the query vector it occurs and
 				// remember it if it is the closest so far.

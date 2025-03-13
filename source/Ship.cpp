@@ -2401,7 +2401,7 @@ bool Ship::IsReadyToJump(bool waitingIsReady) const
 	// and pointed in the right direction.
 	if(!isJump && scramThreshold)
 	{
-		const double deviation = fabs(direction.Unit().Cross(velocity));
+		const double deviation = fabs(direction.Unit().Cross(velocity).Z());
 		if(deviation > scramThreshold)
 			return false;
 	}
@@ -2411,9 +2411,9 @@ bool Ship::IsReadyToJump(bool waitingIsReady) const
 	if(!isJump)
 	{
 		// Figure out if we're within one turn step of facing this system.
-		const bool left = direction.Cross(angle.Unit()) < 0.;
+		const bool left = direction.Cross(angle.Unit()).Z() < 0.;
 		const Angle turned = angle + TurnRate() * (left - !left);
-		const bool stillLeft = direction.Cross(turned.Unit()) < 0.;
+		const bool stillLeft = direction.Cross(turned.Unit()).Z() < 0.;
 
 		if(left == stillLeft && turned != Angle(direction))
 			return false;
@@ -3692,6 +3692,11 @@ const set<const Flotsam *> &Ship::GetTractorFlotsam() const
 	return tractorFlotsam;
 }
 
+std::set<const Flotsam *> &Ship::GetTractorFlotsam()
+{
+	return tractorFlotsam;
+}
+
 
 
 const FormationPattern *Ship::GetFormationPattern() const
@@ -4755,104 +4760,127 @@ void Ship::DoMovement(bool &isUsingAfterburner)
 				if(thrust)
 				{
 					double scale = fabs(thrustCommand);
+					shields -= scale * attributes.Get(isThrusting ?
+						"thrusting shields" : "reverse thrusting shields");
+					hull -= scale * attributes.Get(isThrusting ?
+						"thrusting hull" : "reverse thrusting hull");
+					energy -= scale * attributes.Get(isThrusting ?
+						"thrusting energy" : "reverse thrusting energy");
+					fuel -= scale * attributes.Get(isThrusting ?
+						"thrusting fuel" : "reverse thrusting fuel");
+					heat += scale * attributes.Get(isThrusting ?
+						"thrusting heat" : "reverse thrusting heat");
+					discharge += scale * attributes.Get(isThrusting ?
+						"thrusting discharge" : "reverse thrusting discharge");
+					corrosion += scale * attributes.Get(isThrusting ?
+						"thrusting corrosion" : "reverse thrusting corrosion");
+					ionization += scale * attributes.Get(isThrusting ?
+						"thrusting ion" : "reverse thrusting ion");
+					scrambling += scale * attributes.Get(isThrusting ?
+						"thrusting scramble" : "reverse thrusting scramble");
+					leakage += scale * attributes.Get(isThrusting ?
+						"thrusting leakage" : "reverse thrusting leakage");
+					burning += scale * attributes.Get(isThrusting ?
+						"thrusting burn" : "reverse thrusting burn");
+					slowness += scale * attributes.Get(isThrusting ?
+						"thrusting slowing" : "reverse thrusting slowing");
+					disruption += scale * attributes.Get(isThrusting ?
+						"thrusting disruption" : "reverse thrusting disruption");
 
-					shields -= scale * attributes.Get(isThrusting ? "thrusting shields" : "reverse thrusting shields");
-					hull -= scale * attributes.Get(isThrusting ? "thrusting hull" : "reverse thrusting hull");
-					energy -= scale * attributes.Get(isThrusting ? "thrusting energy" : "reverse thrusting energy");
-					fuel -= scale * attributes.Get(isThrusting ? "thrusting fuel" : "reverse thrusting fuel");
-					heat += scale * attributes.Get(isThrusting ? "thrusting heat" : "reverse thrusting heat");
-					discharge += scale * attributes.Get(isThrusting ? "thrusting discharge" : "reverse thrusting discharge");
-					corrosion += scale * attributes.Get(isThrusting ? "thrusting corrosion" : "reverse thrusting corrosion");
-					ionization += scale * attributes.Get(isThrusting ? "thrusting ion" : "reverse thrusting ion");
-					scrambling += scale * attributes.Get(isThrusting ? "thrusting scramble" :
-						"reverse thrusting scramble");
-					burning += scale * attributes.Get(isThrusting ? "thrusting burn" : "reverse thrusting burn");
-					leakage += scale * attributes.Get(isThrusting ? "thrusting leakage" : "reverse thrusting leakage");
-					slowness += scale * attributes.Get(isThrusting ? "thrusting slowing" : "reverse thrusting slowing");
-					disruption += scale * attributes.Get(isThrusting ? "thrusting disruption" : "reverse thrusting disruption");
+					// Afterburners provide additional thrust and increase the
+					// ship's top speed. They are extremely energy-intensive.
+					if(commands.Has(Command::AFTERBURNER) && isThrusting)
+					{
+						double thrust = attributes.Get("afterburner thrust");
+						double cost = attributes.Get("afterburner energy");
+						double fuel = attributes.Get("afterburner fuel");
+						double heat = attributes.Get("afterburner heat");
+						double discharge = attributes.Get("afterburner discharge");
+						double corrosion = attributes.Get("afterburner corrosion");
+						double ionization = attributes.Get("afterburner ion");
+						double scrambling = attributes.Get("afterburner scramble");
+						double leakage = attributes.Get("afterburner leakage");
+						double burning = attributes.Get("afterburner burn");
+						double slowing = attributes.Get("afterburner slowing");
+						double disruption = attributes.Get("afterburner disruption");
 
-					acceleration += angle.Unit() * thrustCommand * (isThrusting ? Acceleration() : ReverseAcceleration());
+						if(thrust && cost <= energy && (!fuel || this->fuel >= fuel))
+						{
+							isUsingAfterburner = true;
+							this->thrust += thrust;
+
+							this->energy -= cost;
+							if(fuel)
+								this->fuel -= fuel;
+							this->heat += heat;
+							this->discharge += discharge;
+							this->corrosion += corrosion;
+							this->ionization += ionization;
+							this->scrambling += scrambling;
+							this->leakage += leakage;
+							this->burning += burning;
+							this->slowness += slowing;
+							this->disruption += disruption;
+						}
+					}
+
+					acceleration += angle.Unit() * (thrustCommand * thrust / mass);
 				}
 			}
 		}
-		bool applyAfterburner = (commands.Has(Command::AFTERBURNER) || (thrustCommand > 0. && !thrust))
-				&& !CannotAct(Ship::ActionType::AFTERBURNER);
-		if(applyAfterburner)
+		
+		// Add support for vertical movement (up/down along Z axis)
+		double verticalCommand = commands.Has(Command::UP) - commands.Has(Command::DOWN);
+		if(verticalCommand)
 		{
-			thrust = attributes.Get("afterburner thrust");
-			double shieldCost = attributes.Get("afterburner shields");
-			double hullCost = attributes.Get("afterburner hull");
-			double energyCost = attributes.Get("afterburner energy");
-			double fuelCost = attributes.Get("afterburner fuel");
-			double heatCost = -attributes.Get("afterburner heat");
-
-			double dischargeCost = attributes.Get("afterburner discharge");
-			double corrosionCost = attributes.Get("afterburner corrosion");
-			double ionCost = attributes.Get("afterburner ion");
-			double scramblingCost = attributes.Get("afterburner scramble");
-			double leakageCost = attributes.Get("afterburner leakage");
-			double burningCost = attributes.Get("afterburner burn");
-
-			double slownessCost = attributes.Get("afterburner slowing");
-			double disruptionCost = attributes.Get("afterburner disruption");
-
-			if(thrust && shields >= shieldCost && hull >= hullCost
-				&& energy >= energyCost && fuel >= fuelCost && heat >= heatCost)
+			// Use the same thrust as forward/backward for now, but could be made configurable
+			double verticalThrust = attributes.Get("thrust");
+			if(verticalThrust)
 			{
-				shields -= shieldCost;
-				hull -= hullCost;
-				energy -= energyCost;
-				fuel -= fuelCost;
-				heat -= heatCost;
-
-				discharge += dischargeCost;
-				corrosion += corrosionCost;
-				ionization += ionCost;
-				scrambling += scramblingCost;
-				leakage += leakageCost;
-				burning += burningCost;
-
-				slowness += slownessCost;
-				disruption += disruptionCost;
-
-				acceleration += angle.Unit() * (1. + attributes.Get("acceleration multiplier")) * thrust / mass;
-
-				// Only create the afterburner effects if the ship is in the player's system.
-				isUsingAfterburner = !forget;
+				double scale = fabs(verticalCommand);
+				// Use the same energy costs as regular thrusting for now
+				shields -= scale * attributes.Get("thrusting shields");
+				hull -= scale * attributes.Get("thrusting hull");
+				energy -= scale * attributes.Get("thrusting energy");
+				fuel -= scale * attributes.Get("thrusting fuel");
+				heat += scale * attributes.Get("thrusting heat");
+				
+				// Create a vector pointing in the Z direction
+				Point verticalVector(0., 0., verticalCommand);
+				acceleration += verticalVector * (verticalThrust / mass);
 			}
 		}
 	}
-	if(acceleration)
-	{
-		acceleration *= slowMultiplier;
-		// Acceleration multiplier needs to modify effective drag, otherwise it changes top speeds.
-		Point dragAcceleration = acceleration - velocity * dragForce * (1. + attributes.Get("acceleration multiplier"));
-		// Make sure dragAcceleration has nonzero length, to avoid divide by zero.
-		if(dragAcceleration)
-		{
-			// What direction will the net acceleration be if this drag is applied?
-			// If the net acceleration will be opposite the thrust, do not apply drag.
-			dragAcceleration *= .5 * (acceleration.Unit().Dot(dragAcceleration.Unit()) + 1.);
+	// Apply external acceleration (from attacks, etc.).
+	acceleration *= slowMultiplier;
+	Point dragAcceleration = acceleration - velocity * dragForce;
+	velocity += dragAcceleration;
 
-			// A ship can only "cheat" to stop if it is moving slow enough that
-			// it could stop completely this frame. This is to avoid overshooting
-			// when trying to stop and ending up headed in the other direction.
-			if(commands.Has(Command::STOP))
-			{
-				// How much acceleration would it take to come to a stop in the
-				// direction normal to the ship's current facing? This is only
-				// possible if the acceleration plus drag vector is in the
-				// opposite direction from the velocity vector when both are
-				// projected onto the current facing vector, and the acceleration
-				// vector is the larger of the two.
-				double vNormal = velocity.Dot(angle.Unit());
-				double aNormal = dragAcceleration.Dot(angle.Unit());
-				if((aNormal > 0.) != (vNormal > 0.) && fabs(aNormal) > fabs(vNormal))
-					dragAcceleration = -vNormal * angle.Unit();
-			}
-			velocity += dragAcceleration;
+	// A ship can only dock with one other ship at a time.
+	shared_ptr<Ship> target = GetTargetShip();
+	if(target && !isDisabled && !target->IsDestroyed() && !target->IsDisabled()
+			&& !isBoarding && !target->IsBoarding() && !commands.Has(Command::BOARD))
+	{
+		Point dp = (target->position - position);
+		double distance = dp.Length();
+		// If this ship is a fighter or drone and it is close enough to the ship it is targeting,
+		// it automatically "docks" with it. This is to allow fighters to "return to base."
+		// Only dock if the carrier is traveling at a speed that would be safe to land on.
+		if(CanBeCarried() && distance < target->Radius() && target->CanCarry(*this)
+				&& dp.Dot(target->Velocity()) < 10.)
+		{
+			position = target->position;
+			velocity = target->velocity;
+			angle = target->angle;
+			// When a fighter docks with its mothership, its mass is added to the mothership.
+			target->carriedMass += Mass();
+			// If this fighter collected any flotsam, count it as flotsam collected by the carrier.
+			for(const auto &it : GetTractorFlotsam())
+				target->GetTractorFlotsam().insert(it);
+			// Remove this ship from play. It doesn't make sense to set this ship
+			// to be carried because the carrier already has a copy of it.
+			MarkForRemoval();
 		}
-		acceleration = Point();
 	}
 }
 
@@ -4885,13 +4913,13 @@ void Ship::StepTargeting()
 		if(isBoarding && !pilotError)
 		{
 			Angle facing = angle;
-			bool left = target->Unit().Cross(facing.Unit()) < 0.;
+			bool left = target->Unit().Cross(facing.Unit()).Z() < 0.;
 			double turn = left - !left;
 
 			// Check if the ship will still be pointing to the same side of the target
 			// angle if it turns by this amount.
 			facing += TurnRate() * turn;
-			bool stillLeft = target->Unit().Cross(facing.Unit()) < 0.;
+			bool stillLeft = target->Unit().Cross(facing.Unit()).Z() < 0.;
 			if(left != stillLeft)
 				turn = 0.;
 			angle += TurnRate() * turn;

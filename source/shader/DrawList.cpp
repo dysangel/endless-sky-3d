@@ -159,7 +159,7 @@ void DrawList::Push(const Body &body, Point pos, Point blur, double cloak, int s
 
 	// Calculate the blur vector, in texture coordinates.
 	blur *= zoom;
-	item.blur[0] = unit.Cross(blur) / (width * 4.);
+	item.blur[0] = unit.Cross(blur).Z() / (width * 4.);
 	item.blur[1] = -unit.Dot(blur) / (height * 4.);
 
 	item.alpha = (1. - cloak) * body.Alpha(center);

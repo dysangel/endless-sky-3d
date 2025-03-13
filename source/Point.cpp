@@ -27,25 +27,31 @@ Point::Point() noexcept
 #ifdef __SSE3__
 	: v(_mm_setzero_pd())
 #else
-	: x(0.), y(0.)
+	: x(0.), y(0.), z(0.)
 #endif
 {
+#ifdef __SSE3__
+	val.z = 0.;
+#endif
 }
 
 
 
-Point::Point(double x, double y) noexcept
+Point::Point(double x, double y, double z) noexcept
 #ifdef __SSE3__
 	: v(_mm_set_pd(y, x))
 #else
-	: x(x), y(y)
+	: x(x), y(y), z(z)
 #endif
 {
+#ifdef __SSE3__
+	val.z = z;
+#endif
 }
 
 
 
-// Check if the point is anything but (0, 0).
+// Check if the point is anything but (0, 0, 0).
 Point::operator bool() const noexcept
 {
 	return !!*this;
@@ -56,9 +62,9 @@ Point::operator bool() const noexcept
 bool Point::operator!() const noexcept
 {
 #ifdef __SSE3__
-	return (!val.x & !val.y);
+	return (!val.x & !val.y & !val.z);
 #else
-	return (!x & !y);
+	return (!x & !y & !z);
 #endif
 }
 
@@ -67,9 +73,11 @@ bool Point::operator!() const noexcept
 Point Point::operator+(const Point &point) const
 {
 #ifdef __SSE3__
-	return Point(v + point.v);
+	Point result(v + point.v);
+	result.val.z = val.z + point.val.z;
+	return result;
 #else
-	return Point(x + point.x, y + point.y);
+	return Point(x + point.x, y + point.y, z + point.z);
 #endif
 }
 
@@ -79,9 +87,11 @@ Point &Point::operator+=(const Point &point)
 {
 #ifdef __SSE3__
 	v += point.v;
+	val.z += point.val.z;
 #else
 	x += point.x;
 	y += point.y;
+	z += point.z;
 #endif
 	return *this;
 }
@@ -91,9 +101,11 @@ Point &Point::operator+=(const Point &point)
 Point Point::operator-(const Point &point) const
 {
 #ifdef __SSE3__
-	return Point(v - point.v);
+	Point result(v - point.v);
+	result.val.z = val.z - point.val.z;
+	return result;
 #else
-	return Point(x - point.x, y - point.y);
+	return Point(x - point.x, y - point.y, z - point.z);
 #endif
 }
 
@@ -103,9 +115,11 @@ Point &Point::operator-=(const Point &point)
 {
 #ifdef __SSE3__
 	v -= point.v;
+	val.z -= point.val.z;
 #else
 	x -= point.x;
 	y -= point.y;
+	z -= point.z;
 #endif
 	return *this;
 }
@@ -122,9 +136,11 @@ Point Point::operator-() const
 Point Point::operator*(double scalar) const
 {
 #ifdef __SSE3__
-	return Point(v * _mm_loaddup_pd(&scalar));
+	Point result(v * _mm_loaddup_pd(&scalar));
+	result.val.z = val.z * scalar;
+	return result;
 #else
-	return Point(x * scalar, y * scalar);
+	return Point(x * scalar, y * scalar, z * scalar);
 #endif
 }
 
@@ -133,9 +149,11 @@ Point Point::operator*(double scalar) const
 Point operator*(double scalar, const Point &point)
 {
 #ifdef __SSE3__
-	return Point(point.v * _mm_loaddup_pd(&scalar));
+	Point result(point.v * _mm_loaddup_pd(&scalar));
+	result.val.z = point.val.z * scalar;
+	return result;
 #else
-	return Point(point.x * scalar, point.y * scalar);
+	return Point(point.x * scalar, point.y * scalar, point.z * scalar);
 #endif
 }
 
@@ -145,9 +163,11 @@ Point &Point::operator*=(double scalar)
 {
 #ifdef __SSE3__
 	v *= _mm_loaddup_pd(&scalar);
+	val.z *= scalar;
 #else
 	x *= scalar;
 	y *= scalar;
+	z *= scalar;
 #endif
 	return *this;
 }
@@ -159,9 +179,10 @@ Point Point::operator*(const Point &other) const
 #ifdef __SSE3__
 	Point result;
 	result.v = v * other.v;
+	result.val.z = val.z * other.val.z;
 	return result;
 #else
-	return Point(x * other.x, y * other.y);
+	return Point(x * other.x, y * other.y, z * other.z);
 #endif
 }
 
@@ -171,9 +192,11 @@ Point &Point::operator*=(const Point &other)
 {
 #ifdef __SSE3__
 	v *= other.v;
+	val.z *= other.val.z;
 #else
 	x *= other.x;
 	y *= other.y;
+	z *= other.z;
 #endif
 	return *this;
 }
@@ -183,9 +206,11 @@ Point &Point::operator*=(const Point &other)
 Point Point::operator/(double scalar) const
 {
 #ifdef __SSE3__
-	return Point(v / _mm_loaddup_pd(&scalar));
+	Point result(v / _mm_loaddup_pd(&scalar));
+	result.val.z = val.z / scalar;
+	return result;
 #else
-	return Point(x / scalar, y / scalar);
+	return Point(x / scalar, y / scalar, z / scalar);
 #endif
 }
 
@@ -195,50 +220,58 @@ Point &Point::operator/=(double scalar)
 {
 #ifdef __SSE3__
 	v /= _mm_loaddup_pd(&scalar);
+	val.z /= scalar;
 #else
 	x /= scalar;
 	y /= scalar;
+	z /= scalar;
 #endif
 	return *this;
 }
 
 
 
-void Point::Set(double x, double y)
+void Point::Set(double x, double y, double z)
 {
 #ifdef __SSE3__
 	v = _mm_set_pd(y, x);
+	val.z = z;
 #else
 	this->x = x;
 	this->y = y;
+	this->z = z;
 #endif
 }
 
 
 
-// Operations that treat this point as a vector from (0, 0):
+// Operations that treat this point as a vector from (0, 0, 0):
 double Point::Dot(const Point &point) const
 {
 #ifdef __SSE3__
 	__m128d b = v * point.v;
 	b = _mm_hadd_pd(b, b);
-	return reinterpret_cast<double &>(b);
+	return reinterpret_cast<double &>(b) + val.z * point.val.z;
 #else
-	return x * point.x + y * point.y;
+	return x * point.x + y * point.y + z * point.z;
 #endif
 }
 
 
 
-double Point::Cross(const Point &point) const
+Point Point::Cross(const Point &point) const
 {
 #ifdef __SSE3__
-	__m128d b = _mm_shuffle_pd(point.v, point.v, 0x01);
-	b *= v;
-	b = _mm_hsub_pd(b, b);
-	return reinterpret_cast<double &>(b);
+	// For 3D cross product
+	return Point(
+		val.y * point.val.z - val.z * point.val.y,
+		val.z * point.val.x - val.x * point.val.z,
+		val.x * point.val.y - val.y * point.val.x);
 #else
-	return x * point.y - y * point.x;
+	return Point(
+		y * point.z - z * point.y,
+		z * point.x - x * point.z,
+		x * point.y - y * point.x);
 #endif
 }
 
@@ -249,10 +282,10 @@ double Point::Length() const
 #ifdef __SSE3__
 	__m128d b = v * v;
 	b = _mm_hadd_pd(b, b);
-	b = _mm_sqrt_pd(b);
-	return reinterpret_cast<double &>(b);
+	double result = reinterpret_cast<double &>(b) + val.z * val.z;
+	return sqrt(result);
 #else
-	return sqrt(x * x + y * y);
+	return sqrt(x * x + y * y + z * z);
 #endif
 }
 
@@ -268,18 +301,17 @@ double Point::LengthSquared() const
 Point Point::Unit() const
 {
 #ifdef __SSE3__
-	__m128d b = v * v;
-	b = _mm_hadd_pd(b, b);
-	if(!_mm_cvtsd_f64(b))
-		return Point(1., 0.);
-	b = _mm_sqrt_pd(b);
-	return Point(v / b);
+	double lengthSquared = LengthSquared();
+	if(!lengthSquared)
+		return Point(1., 0., 0.);
+	double scale = 1. / sqrt(lengthSquared);
+	return *this * scale;
 #else
-	double b = x * x + y * y;
+	double b = x * x + y * y + z * z;
 	if(!b)
-		return Point(1., 0.);
+		return Point(1., 0., 0.);
 	b = 1. / sqrt(b);
-	return Point(x * b, y * b);
+	return Point(x * b, y * b, z * b);
 #endif
 }
 
@@ -306,39 +338,45 @@ Point Point::Lerp(const Point &to, const double c) const
 
 
 
-// Absolute value of both coordinates.
+// Absolute value of all coordinates.
 Point abs(const Point &p)
 {
 #ifdef __SSE3__
 	// Absolute value for doubles just involves clearing the sign bit.
 	static const __m128d sign_mask = _mm_set1_pd(-0.);
-	return Point(_mm_andnot_pd(sign_mask, p.v));
+	Point result(_mm_andnot_pd(sign_mask, p.v));
+	result.val.z = fabs(p.val.z);
+	return result;
 #else
-	return Point(abs(p.x), abs(p.y));
+	return Point(abs(p.x), abs(p.y), abs(p.z));
 #endif
 }
 
 
 
-// Take the min of the x and y coordinates.
+// Take the min of the x, y, and z coordinates.
 Point min(const Point &p, const Point &q)
 {
 #ifdef __SSE3__
-	return Point(_mm_min_pd(p.v, q.v));
+	Point result(_mm_min_pd(p.v, q.v));
+	result.val.z = min(p.val.z, q.val.z);
+	return result;
 #else
-	return Point(min(p.x, q.x), min(p.y, q.y));
+	return Point(min(p.x, q.x), min(p.y, q.y), min(p.z, q.z));
 #endif
 }
 
 
 
-// Take the max of the x and y coordinates.
+// Take the max of the x, y, and z coordinates.
 Point max(const Point &p, const Point &q)
 {
 #ifdef __SSE3__
-	return Point(_mm_max_pd(p.v, q.v));
+	Point result(_mm_max_pd(p.v, q.v));
+	result.val.z = max(p.val.z, q.val.z);
+	return result;
 #else
-	return Point(max(p.x, q.x), max(p.y, q.y));
+	return Point(max(p.x, q.x), max(p.y, q.y), max(p.z, q.z));
 #endif
 }
 
@@ -349,5 +387,6 @@ Point max(const Point &p, const Point &q)
 inline Point::Point(const __m128d &v)
 	: v(v)
 {
+	val.z = 0.;
 }
 #endif

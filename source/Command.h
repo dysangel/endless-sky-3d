@@ -39,6 +39,8 @@ public:
 	static const Command RIGHT;
 	static const Command AUTOSTEER;
 	static const Command BACK;
+	static const Command UP;     // New command for 3D movement
+	static const Command DOWN;   // New command for 3D movement
 	static const Command MOUSE_TURNING_HOLD;
 	static const Command PRIMARY;
 	static const Command TURRET_TRACKING;
